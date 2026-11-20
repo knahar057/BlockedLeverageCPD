@@ -40,3 +40,7 @@ data/*
 
 # Keep the data download instructions
 !data/README.md
+# macOS system files
+.DS_Store
+# Local Julia environment
+Manifest.toml
