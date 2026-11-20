@@ -30,3 +30,13 @@ JuliaLocalPreferences.toml
 
 # Conda environment and metadata created in the project directory by the CondaPkg package
 .CondaPkg/
+
+# ==========================================
+# Dataset files
+# ==========================================
+
+# Ignore everything inside the data directory
+data/*
+
+# Keep the data download instructions
+!data/README.md
