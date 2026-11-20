@@ -1,5 +1,6 @@
 # Blocked Leverage Score Sampling in CP Tensor Decomposition
 
+**Authors:** Karl Pierce, Yucong Liu, Kamrun Nahar Keya, and Jamie Haddock
 This repository contains Julia code for the numerical experiments associated with the manuscript **“Blocked Leverage Score Sampling in the Randomized Alternating Least Squares CP Tensor Decomposition.”**
 
 The experiments compare **regular leverage-score sampling** and **blocked leverage-score sampling** for randomized alternating least squares (ALS) applied to the canonical polyadic decomposition (CPD) of tensors.
