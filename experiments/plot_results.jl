@@ -57,7 +57,12 @@ dataset = replace(
     "_results.csv" => "",
 )
 
-dataset_title = titlecase(dataset)
+dataset_title = Dict(
+    "chicago" => "Chicago Crime",
+    "miranda" => "Miranda",
+    "coil" => "COIL",
+)[dataset]
+#titlecase(dataset)
 
 
 # ============================================================
@@ -71,41 +76,57 @@ data, header = readdlm(
 )
 
 # Regular leverage-score sampling
-regular_time = Float64(data[1, 3])
-regular_fit = Float64(data[1, 4])
-regular_memory = Float64(data[1, 5])
+time_exact = Float64(data[1, 3])
+fit_exact = Float64(data[1, 4])
+memory_exact = Float64(data[1, 5])
 
 # Blocked leverage-score sampling
 block_sizes = Int.(data[2:end, 2])
-block_times = Float64.(data[2:end, 3])
-block_fits = Float64.(data[2:end, 4])
-block_memory = Float64.(data[2:end, 5])
+block_times_mean = Float64.(data[2:end, 3])
+block_times_std = Float64.(data[2:end, 4])
+block_memory_mean = Float64.(data[2:end, 5])
+block_fits_max = Float64.(data[2:end, 6])
+block_fits_min = Float64.(data[2:end, 7])
+block_fits_diff = Float64.(data[2:end, 8])
 
-
+lw = 3
+ms = 8
 # ============================================================
 # Plot 1: CPD fit
 # ============================================================
 
-p_fit = plot(
+p_fit = hline(
     block_sizes,
-    block_fits;
-    marker=:circle,
-    linewidth=3,
-    markersize=5,
-    label="Blocked",
-    xlabel="Block Size",
-    ylabel="Fit",
-    title="$(dataset_title): CPD Fit",
-    legend=:bottomleft,
+    [fit_exact],
+    linestyle = 4,
+    label = "Standard ALS";
+    lw,ms
 )
 
-hline!(
-    p_fit,
-    [regular_fit];
-    linestyle=:dash,
-    linewidth=2,
-    label="Regular Sampling",
-)
+x = block_sizes
+y1 = block_fits_max
+y2 = block_fits_min
+mid = (y1 .+ y2) ./ 2   #the midpoints (usually representing mean values)
+w = (y2 .- y1) ./ 2     #the vertical deviation around the means
+
+plot!(x, mid, ribbon = w , 
+fillalpha = 0.35, c = 2, marker=:circle,
+legend = :topleft, label = "Block Sampled ALS";
+lw,ms)
+# plot!(x,y1, msw = 0, ms = 2.5, label = "Lower bound")
+# plot!(x,y2, msw = 0, ms = 2.5, label = "Upper bound")
+
+plot!(
+    xlabel = "Block Size",
+    ylabel = "Fit",
+    title = "Accuracy of Block Sampled ALS
+    Data: $(dataset_title)",
+    legendfontsize=10,
+    xtickfontsize=9,
+    ytickfontsize=9,
+    labelfontsize=12,
+    yrange=[0,0.25],
+    legend = :bottomleft)
 
 savefig(
     p_fit,
@@ -122,24 +143,30 @@ savefig(
 
 p_time = plot(
     block_sizes,
-    block_times;
-    marker=:circle,
-    linewidth=3,
-    markersize=5,
-    label="Blocked",
-    xlabel="Block Size",
-    ylabel="Time (s)",
-    title="$(dataset_title): Runtime",
-    legend=:topright,
+    time_exact .* ones(length(block_sizes)),
+    linestyle = 4,
+    label = "Standard ALS";
+    lw,ms
 )
 
-hline!(
-    p_time,
-    [regular_time];
-    linestyle=:dash,
-    linewidth=2,
-    label="Regular Sampling",
+plot!(
+    block_sizes,
+    block_times_mean,
+    # yerr = block_times_std,
+    marker = :circle,
+    label = "Block Sampled ALS";
+    lw,ms
 )
+plot!(
+    xlabel = "Block Size",
+    ylabel = "Time (s)",
+    title = "Time of Block Sampled CPD
+    Data: $(dataset_title)",
+    legend = :right,
+    legendfontsize=10,
+    xtickfontsize=9,
+    ytickfontsize=9,
+    labelfontsize=12,)
 
 savefig(
     p_time,
@@ -154,26 +181,32 @@ savefig(
 # Plot 3: Allocated memory
 # ============================================================
 
-p_memory = plot(
+p_memory = hline(
     block_sizes,
-    block_memory;
-    marker=:circle,
-    linewidth=3,
-    markersize=5,
-    label="Blocked",
-    xlabel="Block Size",
-    ylabel="Allocated Memory (MB)",
-    title="$(dataset_title): Memory Allocation",
-    legend=:topright,
+    [memory_exact],
+    linestyle = 4,
+    label = "Standard ALS";
+    lw,ms
 )
 
-hline!(
-    p_memory,
-    [regular_memory];
-    linestyle=:dash,
-    linewidth=2,
-    label="Regular Sampling",
+plot!(
+    block_sizes,
+    block_memory_mean,
+    # yerr = block_memory_std,
+    marker = :circle,
+    label = "Block Sampled ALS";
+    lw,ms
 )
+plot!(
+    xlabel = "Block Size",
+    ylabel = "Allocated Memory (MB)",
+    title = "Memory Allocation for Block Sampled CPD
+    Data: $(dataset_title)",
+    legend = :right,
+    legendfontsize=10,
+    xtickfontsize=9,
+    ytickfontsize=9,
+    labelfontsize=12,)
 
 savefig(
     p_memory,
