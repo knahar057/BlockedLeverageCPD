@@ -85,9 +85,10 @@ block_sizes = Int.(data[2:end, 2])
 block_times_mean = Float64.(data[2:end, 3])
 block_times_std = Float64.(data[2:end, 4])
 block_memory_mean = Float64.(data[2:end, 5])
-block_fits_max = Float64.(data[2:end, 6])
-block_fits_min = Float64.(data[2:end, 7])
-block_fits_diff = Float64.(data[2:end, 8])
+block_memory_std= Float64.(data[2:end, 6])
+block_fits_max = Float64.(data[2:end, 7])
+block_fits_min = Float64.(data[2:end, 8])
+block_fits_diff = Float64.(data[2:end, 9])
 
 lw = 3
 ms = 8
@@ -98,7 +99,7 @@ ms = 8
 p_fit = hline(
     block_sizes,
     [fit_exact],
-    linestyle = 4,
+    linestyle = :dot,
     label = "Standard ALS";
     lw,ms
 )
@@ -125,7 +126,7 @@ plot!(
     xtickfontsize=9,
     ytickfontsize=9,
     labelfontsize=12,
-    yrange=[0,0.25],
+    yrange=dataset == "chicago" ? [0,0.251] : [0.98,1],
     legend = :bottomleft)
 
 savefig(
@@ -144,7 +145,7 @@ savefig(
 p_time = plot(
     block_sizes,
     time_exact .* ones(length(block_sizes)),
-    linestyle = 4,
+    linestyle = :dot,
     label = "Standard ALS";
     lw,ms
 )
@@ -184,7 +185,7 @@ savefig(
 p_memory = hline(
     block_sizes,
     [memory_exact],
-    linestyle = 4,
+    linestyle = :dot,
     label = "Standard ALS";
     lw,ms
 )

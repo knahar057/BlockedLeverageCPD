@@ -1,6 +1,9 @@
+using Pkg
+Pkg.activate(joinpath(@__DIR__,".."))
+using Random
+using Plots
+using StatsBase
 using MAT
-using ITensors
-using ITensorCPD
 
 # Load the common regular and blocked CP-ALS experiment.
 include(joinpath(@__DIR__, "..", "src", "blocked_cpd.jl"))
@@ -101,12 +104,21 @@ println("\n========================================")
 println("MIRANDA RESULTS")
 println("========================================")
 
-println("\nRegular sampling")
+println("\nCanonical ALS")
 println("Time   = ", results.regular.time, " s")
 println("Fit    = ", results.regular.fit)
 println("Memory = ", results.regular.memory, " MB")
 
-println("\nBlocked sampling")
+println("\nBlocked leverage-score sampling")
+
+block_times_mean = mean.(eachcol(results.blocked.times))
+block_times_std = std.(eachcol(results.blocked.times))
+block_memory_mean = mean.(eachcol(results.blocked.memory))
+block_memory_std = std.(eachcol(results.blocked.memory))
+block_fits_max = maximum.(eachcol(results.blocked.fits))
+block_fits_min = minimum.(eachcol(results.blocked.fits))
+block_fits_mean = mean.(eachcol(results.blocked.fits))
+diff = block_fits_max - block_fits_min
 
 for i in eachindex(results.blocked.block_sizes)
 
@@ -117,21 +129,22 @@ for i in eachindex(results.blocked.block_sizes)
 
     println(
         "  Time   = ",
-        results.blocked.times[i],
+        block_times_mean[i],
         " s",
     )
 
     println(
         "  Fit    = ",
-        results.blocked.fits[i],
+        block_fits_mean[i],
     )
 
     println(
         "  Memory = ",
-        results.blocked.memory[i],
+        block_memory_mean[i],
         " MB",
     )
 end
+
 # ============================================================
 # Save results
 # ============================================================
@@ -173,9 +186,13 @@ open(results_file, "w") do file
             file,
             "Blocked,",
             results.blocked.block_sizes[i], ",",
-            results.blocked.times[i], ",",
-            results.blocked.fits[i], ",",
-            results.blocked.memory[i],
+            block_times_mean[i], ",",
+            block_times_std[i], ",",
+            block_memory_mean[i], ",",
+            block_memory_std[i], ",",
+            block_fits_max[i], ",",
+            block_fits_min[i], ",",
+            diff[i]
         )
     end
 end

@@ -127,7 +127,7 @@ println("\n========================================")
 println("CHICAGO CRIME RESULTS")
 println("========================================")
 
-println("\nRegular leverage-score sampling")
+println("\nCanonical ALS")
 println("Time   = ", results.regular.time, " s")
 println("Fit    = ", results.regular.fit)
 println("Memory = ", results.regular.memory, " MB")
