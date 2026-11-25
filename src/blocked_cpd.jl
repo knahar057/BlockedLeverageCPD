@@ -94,7 +94,6 @@ function run_blocked_cpd(
     block_sizes,
     maxiter=20,
     seed=1234,
-    ; 
     miranda_scaling = false
 )
 
