@@ -166,6 +166,7 @@ plot!(
     title = "Time of Block Sampled CPD
     Data: $(dataset_title)",
     legend = :right,
+    yscale= dataset == "miranda" ? :log10 : :identity,
     legendfontsize=10,
     xtickfontsize=9,
     ytickfontsize=9,
