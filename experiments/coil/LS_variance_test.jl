@@ -1,3 +1,28 @@
+include("$(@__DIR__)/read_coil.jl")
+using StatsBase
+include(joinpath(@__DIR__, "..","..", "src", "single_solve.jl"))
+results_dir = joinpath(
+    @__DIR__,
+    "..","..",
+    "results",
+)
+mkpath(results_dir)
+
+path = joinpath(@__DIR__, "..", "..", "data","coil-100")
+image_names = readdir(path)
+
+imgs = 100
+coil = readcoil(path, imgs, Float64);
+
+rng = RandomDevice()
+init_guess = ITensorCPD.random_CPD(coil, 20; rng);
+
+ncoil = sqrt(sum(hadamard_product(coil,coil)))
+
+als = ITensorCPD.compute_als(coil, init_guess; alg=ITensorCPD.BlockLevScoreSampled(100,2), 
+check=ITensorCPD.NoCheck(20), normal=false,);
+opt = ITensorCPD.optimize(init_guess, als; verbose=false)
+
 ################################
 ### Variance in loss function ##
 ################################
@@ -6,34 +31,31 @@
     check_exact = ITensorCPD.FitCheck(1e-3, 20, ncoil)
     als = ITensorCPD.compute_als(coil, init_guess; alg=algNormal, check=check_exact);
     cpd_good = ITensorCPD.optimize(init_guess, als; verbose=true);
+    
     als = ITensorCPD.compute_als(coil, init_guess; alg=ITensorCPD.BlockLevScoreSampled(2000,1), check=check_exact, normal=true);
     _,_, l, t = single_solve(als, cpd_good, 1);
-    ## Create a random initial guess with rank 20
-    # ITensorCPD.decompose(coil, 0.01, 5; verbose=true, alg=algNormal, check=check_exact);
-    time = []
-    fit = [[],[],[],[]]
+
+    samples = [500,1000,2000]
+    repeat = 2
+    fit = Array{Float64}(undef, length(samples), repeat)
     ref = []
-    for (s,fact) in zip([500,1000,2000],1:4)
+    for (fact,s) in enumerate(samples)
         fact = 1
-        # als = ITensorCPD.compute_als(coil, init_guess; alg=ITensorCPD.KRPFreeNormal(), check=check_exact);
-        # _,_, ref_loss, ref_time = single_solve(als, cpd_good, fact);
-        # push!(ref, ref_loss)
+        ft = @view fit[fact]
+        println("Starting sample $(s)")
         for i in 1:20
             lt = []
             lf = []
             for j in 1:5
             als = ITensorCPD.compute_als(coil, cpd_good; alg=ITensorCPD.BlockLevScoreSampled(s,i), 
             check=ITensorCPD.NoCheck(20), normal=true, stop_resample=-1, variance_truncation=false);
-            # push!(time, @elapsed opt = ITensorCPD.optimize(init_guess, als; verbose=false));
-            # push!(fit, check_fit(als, opt))
+            
             _,_,f,t = single_solve(als, cpd_good, 1);
-            #(init_guess, als; verbose=false);
-            push!(lt, t)
-            push!(lf, f)
+            
+            ft[i] = f
+            #push!(lt, t)
+            # push!(lf, f)
             end
-            # push!(time, maximum(lt))
-            push!(fit[fact], lf)
-            # push!(fit, check_fit(als, opt))
         end
     end
 
@@ -44,7 +66,6 @@
     title="Acceleration from Block Sampling")
     savefig("$(@__DIR__)/../plots/coil/$(imgs)_images/block_time_acceleration.pdf")
 
-    repeat = 5
     fs = map(x -> mean.(eachcol(hcat(x...))), fit)
     f1 = hcat(fit[1]...)
     f2 = hcat(fit[2]...)
