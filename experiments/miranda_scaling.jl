@@ -113,6 +113,7 @@ for nfirst in tensor_sizes
         block_sizes=block_sizes,
         maxiter=maxiter,
         seed=seed,
+        miranda_scaling=true
     )
 
 
