@@ -94,6 +94,8 @@ function run_blocked_cpd(
     block_sizes,
     maxiter=20,
     seed=1234,
+    ; 
+    miranda_scaling = false
 )
 
     # ============================================================
@@ -121,6 +123,16 @@ function run_blocked_cpd(
         init;
         alg = alg_exact,
         check = ITensorCPD.NoCheck(maxiter)
+    );
+
+    if miranda_scaling
+        als_exact.additional_items[:mttkrp_contract_sequences] = [Any[1, Any[3, 2]], Any[2, Any[3, 1]], Any[2, Any[3, 1]]]
+    end
+    # Precompile the optimization
+    opt_exact = ITensorCPD.optimize(
+        init,
+        als_exact;
+        verbose = false
     );
 
     # Run CP-ALS and record runtime and allocated memory.
@@ -153,6 +165,46 @@ function run_blocked_cpd(
     block_times = Matrix{Float64}(undef, (ntimes, length(block_sizes)))
     block_fits = similar(block_times)
     block_memory = similar(block_times)
+
+    # this precompiles the optimization loop.
+    for (block, i) in zip(block_sizes[1], 1:length(block_sizes[1]))
+        println("\n----------------------------------------")
+        println("Block size = ", block)
+        for rep in 1:ntimes
+
+            alg_block = ITensorCPD.BlockLevScoreSampled(
+                samples,
+                block
+            )
+
+            als_block = ITensorCPD.compute_als(
+                X,
+                init;
+                alg = alg_block,
+                check = ITensorCPD.NoCheck(maxiter),
+                normal = false,
+            )
+
+            try
+                stats_block = @timed opt_block = ITensorCPD.optimize(
+                    init,
+                    als_block;
+                    verbose = false
+                )
+
+                fit_block = check_fit(
+                    als_block,
+                    opt_block
+                )
+
+                time_block = stats_block.time
+                memory_block = stats_block.bytes / 1024^2
+
+            catch
+                rep -= 1
+            end
+        end
+    end
 
     for (block, i) in zip(block_sizes, 1:length(block_sizes))
         println("\n----------------------------------------")

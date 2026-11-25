@@ -1,6 +1,9 @@
+using Pkg
+Pkg.activate(joinpath(@__DIR__,".."))
+using Random
+using Plots
+using StatsBase
 using MAT
-using ITensors
-using ITensorCPD
 
 # Load the common regular and blocked CP-ALS experiment.
 include(joinpath(@__DIR__, "..", "src", "blocked_cpd.jl"))
@@ -81,77 +84,84 @@ results_file = joinpath(
 # Run scalability experiment
 # ============================================================
 
-open(results_file, "w") do file
+file = open(results_file, "w") 
 
-    # Column names
-    println(
-        file,
-        "tensor_size,method,block_size,time_seconds,fit,memory_mb",
+# Column names
+println(
+    file,
+    "tensor_size,method,block_size,time_seconds,fit,memory_mb",
+)
+
+for nfirst in tensor_sizes
+
+    println("\n========================================")
+    println("Tensor size = ", nfirst, " x 256 x 256")
+    println("========================================")
+
+    # Load the requested Miranda tensor size.
+    miranda = read_miranda(
+        data_path,
+        nfirst;
+        elt=Float64,
     )
 
-    for nfirst in tensor_sizes
-
-        println("\n========================================")
-        println("Tensor size = ", nfirst, " x 256 x 256")
-        println("========================================")
-
-        # Load the requested Miranda tensor size.
-        miranda = read_miranda(
-            data_path,
-            nfirst;
-            elt=Float64,
-        )
-
-        # Run regular and blocked leverage-score sampled CP-ALS.
-        results = run_blocked_cpd(
-            miranda;
-            rank=rank,
-            samples=samples,
-            block_sizes=block_sizes,
-            maxiter=maxiter,
-            seed=seed,
-        )
+    # Run regular and blocked leverage-score sampled CP-ALS.
+    results = run_blocked_cpd(
+        miranda;
+        rank=rank,
+        samples=samples,
+        block_sizes=block_sizes,
+        maxiter=maxiter,
+        seed=seed,
+    )
 
 
-        # ----------------------------------------------------
-        # Save regular leverage-score result
-        # ----------------------------------------------------
+    # ----------------------------------------------------
+    # Save regular leverage-score result
+    # ----------------------------------------------------
+
+    println(
+        file,
+        nfirst, ",",
+        "Regular,NA,",
+        results.regular.time, ",",
+        results.regular.fit, ",",
+        results.regular.memory,
+    )
+
+
+    # ----------------------------------------------------
+    # Save blocked leverage-score results
+    # ----------------------------------------------------
+
+    block_times_mean = mean.(eachcol(results.blocked.times))
+    block_times_std = std.(eachcol(results.blocked.times))
+    block_memory_mean = mean.(eachcol(results.blocked.memory))
+    block_memory_std = std.(eachcol(results.blocked.memory))
+    block_fits_max = maximum.(eachcol(results.blocked.fits))
+    block_fits_min = minimum.(eachcol(results.blocked.fits))
+    block_fits_mean = mean.(eachcol(results.blocked.fits))
+    diff = block_fits_max - block_fits_min
+
+    for i in eachindex(results.blocked.block_sizes)
 
         println(
             file,
             nfirst, ",",
-            "Regular,NA,",
-            results.regular.time, ",",
-            results.regular.fit, ",",
-            results.regular.memory,
+            "Blocked,",
+            results.blocked.block_sizes[i], ",",
+            block_times_mean[i], ",",
+            block_times_std[i], ",",
+            block_memory_mean[i], ",",
+            block_memory_std[i], ",",
+            block_fits_max[i], ",",
+            block_fits_min[i], ",",
+            diff[i]
         )
-
-
-        # ----------------------------------------------------
-        # Save blocked leverage-score results
-        # ----------------------------------------------------
-
-        for i in eachindex(results.blocked.block_sizes)
-
-            println(
-                file,
-                nfirst, ",",
-                "Blocked,",
-                results.blocked.block_sizes[i], ",",
-                results.blocked.times[i], ",",
-                results.blocked.fits[i], ",",
-                results.blocked.memory[i],
-            )
-        end
-
-
-        # Free the current tensor before loading the next size.
-        miranda = nothing
-        GC.gc()
     end
 end
 
-
+close(file)
 println("\n========================================")
 println("MIRANDA SCALABILITY EXPERIMENT COMPLETE")
 println("========================================")

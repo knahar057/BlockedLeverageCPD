@@ -1,3 +1,5 @@
+using Pkg
+Pkg.activate(joinpath(@__DIR__,".."))
 using DelimitedFiles
 using Plots
 
