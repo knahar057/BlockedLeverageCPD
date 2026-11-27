@@ -1,3 +1,5 @@
+using Pkg
+Pkg.activate(joinpath(@__DIR__,".."))
 using DelimitedFiles
 using Plots
 
@@ -53,8 +55,15 @@ dataset = replace(
     "_scaling_results.csv" => "",
 )
 
-dataset_title = titlecase(dataset)
+dataset_title = Dict(
+    "chicago" => "Chicago Crime",
+    "miranda" => "Miranda",
+    "coil" => "COIL",
+)[dataset]
 
+
+lw = 3
+ms = 8
 
 # ============================================================
 # Read results
@@ -67,7 +76,7 @@ data, header = readdlm(
 )
 
 # Tensor sizes
-tensor_sizes = unique(Int.(data[:, 1]))
+tensor_sizes = unique((data[:, 1]))
 
 # Regular leverage-score results
 regular_rows = data[:, 2] .== "Regular"
@@ -78,46 +87,61 @@ regular_memory = Float64.(data[regular_rows, 6])
 
 # Block sizes used in the experiment
 blocked_rows = data[:, 2] .== "Blocked"
+blocked_data = data[blocked_rows,:]
 
 block_sizes = unique(
     Int.(data[blocked_rows, 3])
 )
 
+### This matrix is dimension of index x number of blocks
+block_times_mean = Array{Float64}(undef, sum(regular_rows), length(block_sizes))
+block_mem_mean = similar(block_times_mean)
+block_fits_max = similar(block_times_mean)
+block_fits_min = similar(block_times_mean)
+for i in 1:5:20
+    block_times_mean[i÷5+1,:]  = blocked_data[i:i+4,4]
+    block_mem_mean[i÷5+1,:]  = blocked_data[i:i+4,6]
+    block_fits_max[i÷5+1,:]  = blocked_data[i:i+4,8]
+    block_fits_min[i÷5+1,:]  = blocked_data[i:i+4,9]
+end
 
 # ============================================================
 # Plot 1: Runtime
 # ============================================================
 
+markers = [:circle, :cross, :diamond,  :xcross, :utriangle]
 p_time = plot(
     tensor_sizes,
-    regular_times;
-    marker=:circle,
-    linewidth=3,
-    markersize=6,
-    label="Regular",
-    xlabel="Tensor Size",
-    ylabel="Time (s)",
-    title="$(dataset_title): Runtime Scalability",
+    regular_times,
+    ls=:dot,
+    label = "Stanard ALS";
+    lw,ms
 )
 
-for block_size in block_sizes
-
-    rows =
-        (data[:, 2] .== "Blocked") .&
-        (data[:, 3] .== block_size)
-
-    block_times = Float64.(data[rows, 4])
-
+for (i,block) in enumerate(block_sizes)
     plot!(
-        p_time,
         tensor_sizes,
-        block_times;
-        marker=:circle,
-        linewidth=3,
-        markersize=6,
-        label="Block $(block_size)",
+        block_times_mean[:,i],
+        marker = markers[i],
+        label = "Block Size: $(block)",
+        ;
+        lw,ms
     )
 end
+
+plot!(
+    xlabel = "Tensor Size (n × 256 × 256)",
+    ylabel = "Time (s)",
+    title = "Runtime Scaling:
+    Data: Miranda",
+    legendfontsize=9,
+    xtickfontsize=9,
+    ytickfontsize=9,
+    labelfontsize=12,
+    yrange=[10^-1,10^2],
+    yscale=:log10,
+    legend=:topleft
+)
 
 savefig(
     p_time,
@@ -134,34 +158,38 @@ savefig(
 
 p_fit = plot(
     tensor_sizes,
-    regular_fits;
-    marker=:circle,
-    linewidth=3,
-    markersize=6,
-    label="Regular",
-    xlabel="Tensor Size",
-    ylabel="Fit",
-    title="$(dataset_title): Fit Scalability",
+    regular_fits,
+    ls=:dot,
+    label = "Standard ALS";
+    ms,lw
 )
 
-for block_size in block_sizes
+for (i,block) in enumerate(block_sizes)
+    x = tensor_sizes
+    y1 = block_fits_max[:,i]
+    y2 = block_fits_min[:,i]
+    mid = (y1 .+ y2) ./ 2   #the midpoints (usually representing mean values)
+    w = (y2 .- y1) ./ 2     #the vertical deviation around the means
 
-    rows =
-        (data[:, 2] .== "Blocked") .&
-        (data[:, 3] .== block_size)
+    plot!(x, mid, ribbon = w , 
+    fillalpha = 0.35, c = i+1,
+    marker=markers[i],
+    legend = :topleft, label = "Block Size: $(block)";
+    ms,lw)
 
-    block_fits = Float64.(data[rows, 5])
-
-    plot!(
-        p_fit,
-        tensor_sizes,
-        block_fits;
-        marker=:circle,
-        linewidth=3,
-        markersize=6,
-        label="Block $(block_size)",
-    )
 end
+
+plot!(
+    xlabel = "Tensor Size (n × 256 × 256)",
+    ylabel = "Fit",
+    title = "Accuracy Scaling:
+Data: Miranda",
+    legendfontsize=10,
+    xtickfontsize=9,
+    ytickfontsize=9,
+    labelfontsize=12,
+    legend=:topright
+)
 
 savefig(
     p_fit,
@@ -178,34 +206,35 @@ savefig(
 
 p_memory = plot(
     tensor_sizes,
-    regular_memory;
-    marker=:circle,
-    linewidth=3,
-    markersize=6,
-    label="Regular",
-    xlabel="Tensor Size",
-    ylabel="Allocated Memory (MB)",
-    title="$(dataset_title): Memory Scalability",
+    regular_memory,
+    ls=:dot,
+    label = "Standard ALS";
+    ms,lw
 )
 
-for block_size in block_sizes
-
-    rows =
-        (data[:, 2] .== "Blocked") .&
-        (data[:, 3] .== block_size)
-
-    block_memory = Float64.(data[rows, 6])
-
+for (i, block) in enumerate(block_sizes)
     plot!(
-        p_memory,
         tensor_sizes,
-        block_memory;
-        marker=:circle,
-        linewidth=3,
-        markersize=6,
-        label="Block $(block_size)",
+        block_mem_mean[:,i],
+        marker = markers[i],
+        label = "Block Size: $(block)";
+        ms,lw
     )
 end
+
+
+plot!(
+    xlabel = "Tensor Size (n × 256 × 256)",
+    ylabel = "Allocated Memory (MB)",
+    title = "Memory Scaling:
+Data: Miranda",
+    legendfontsize=10,
+    xtickfontsize=9,
+    ytickfontsize=9,
+    labelfontsize=12,
+    # yscale=:log10,
+    legend=:topleft
+)
 
 savefig(
     p_memory,

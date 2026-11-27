@@ -94,6 +94,7 @@ function run_blocked_cpd(
     block_sizes,
     maxiter=20,
     seed=1234,
+    miranda_scaling = false
 )
 
     # ============================================================
@@ -101,51 +102,54 @@ function run_blocked_cpd(
     # ============================================================
 
     println("\n========================================")
-    println("Regular Leverage-Score Sampling")
+    println("Canonical ALS")
     println("========================================")
 
     # Initialize the CP factors.
     rng = MersenneTwister(seed)
 
-    init_regular = ITensorCPD.random_CPD(
+    init = ITensorCPD.random_CPD(
         X,
         rank;
         rng,
     )
+    
+    alg_exact = ITensorCPD.KRPFreeNormal()
 
-    # Define the regular leverage-score sampling algorithm.
-    alg_regular = ITensorCPD.LevScoreSampled(samples)
-
-    # Construct the ALS problem.
-    als_regular = ITensorCPD.compute_als(
+    # Construct the canonical ALS problem.
+    als_exact = ITensorCPD.compute_als(
         X,
-        init_regular;
-        alg=alg_regular,
-        check=ITensorCPD.NoCheck(maxiter),
-        normal=true,
-        stop_resample=-1,
-        variance_truncation=false,
-    )
+        init;
+        alg = alg_exact,
+        check = ITensorCPD.NoCheck(maxiter)
+    );
+
+    if miranda_scaling
+        als_exact.additional_items[:mttkrp_contract_sequences] = [Any[1, Any[3, 2]], Any[2, Any[3, 1]], Any[2, Any[3, 1]]]
+    end
+    # Precompile the optimization
+    opt_exact = ITensorCPD.optimize(
+        init,
+        als_exact;
+        verbose = false
+    );
 
     # Run CP-ALS and record runtime and allocated memory.
-    stats_regular = @timed opt_regular = ITensorCPD.optimize(
-        init_regular,
-        als_regular;
-        verbose=false,
-    )
+    stats_exact = @timed opt_exact = ITensorCPD.optimize(
+        init,
+        als_exact;
+        verbose = false
+    );
 
     # Compute the final CPD fit.
-    fit_regular = check_fit(
-        als_regular,
-        opt_regular,
-    )
+    fit_exact = check_fit(als_exact, opt_exact)
 
-    time_regular = stats_regular.time
-    memory_regular = stats_regular.bytes / 1024^2
+    time_exact = stats_exact.time
+    memory_exact = stats_exact.bytes / 1024^2
 
-    println("Time   = ", time_regular, " s")
-    println("Fit    = ", fit_regular)
-    println("Memory = ", memory_regular, " MB")
+    println("Time   = ", time_exact, " s")
+    println("Fit    = ", fit_exact)
+    println("Memory = ", memory_exact, " MB")
 
 
     # ============================================================
@@ -156,65 +160,95 @@ function run_blocked_cpd(
     println("Blocked Leverage-Score Sampling")
     println("========================================")
 
-    block_times = Float64[]
-    block_fits = Float64[]
-    block_memory = Float64[]
+    ntimes = 10
+    block_times = Matrix{Float64}(undef, (ntimes, length(block_sizes)))
+    block_fits = similar(block_times)
+    block_memory = similar(block_times)
 
-    for block_size in block_sizes
-
+    # this precompiles the optimization loop.
+    for (block, i) in zip(block_sizes[1], 1:length(block_sizes[1]))
         println("\n----------------------------------------")
-        println("Block size = ", block_size)
+        println("Block size = ", block)
+        for rep in 1:ntimes
 
-        # Reset the random seed so that each experiment uses the
-        # same random CP initialization.
-        rng = MersenneTwister(seed)
+            alg_block = ITensorCPD.BlockLevScoreSampled(
+                samples,
+                block
+            )
 
-        init_block = ITensorCPD.random_CPD(
-            X,
-            rank;
-            rng,
-        )
+            als_block = ITensorCPD.compute_als(
+                X,
+                init;
+                alg = alg_block,
+                check = ITensorCPD.NoCheck(maxiter),
+                normal = false,
+            )
 
-        # Define the blocked leverage-score sampling algorithm.
-        alg_block = ITensorCPD.BlockLevScoreSampled(
-            samples,
-            block_size,
-        )
+            try
+                stats_block = @timed opt_block = ITensorCPD.optimize(
+                    init,
+                    als_block;
+                    verbose = false
+                )
 
-        # Construct the ALS problem.
-        als_block = ITensorCPD.compute_als(
-            X,
-            init_block;
-            alg=alg_block,
-            check=ITensorCPD.NoCheck(maxiter),
-            normal=true,
-            stop_resample=-1,
-            variance_truncation=false,
-        )
+                fit_block = check_fit(
+                    als_block,
+                    opt_block
+                )
 
-        # Run CP-ALS and record runtime and allocated memory.
-        stats_block = @timed opt_block = ITensorCPD.optimize(
-            init_block,
-            als_block;
-            verbose=false,
-        )
+                time_block = stats_block.time
+                memory_block = stats_block.bytes / 1024^2
 
-        # Compute the final CPD fit.
-        fit_block = check_fit(
-            als_block,
-            opt_block,
-        )
+            catch
+                rep -= 1
+            end
+        end
+    end
 
-        time_block = stats_block.time
-        memory_block = stats_block.bytes / 1024^2
+    for (block, i) in zip(block_sizes, 1:length(block_sizes))
+        println("\n----------------------------------------")
+        println("Block size = ", block)
+        for rep in 1:ntimes
 
-        push!(block_times, time_block)
-        push!(block_fits, fit_block)
-        push!(block_memory, memory_block)
+            alg_block = ITensorCPD.BlockLevScoreSampled(
+                samples,
+                block
+            )
 
-        println("Time   = ", time_block, " s")
-        println("Fit    = ", fit_block)
-        println("Memory = ", memory_block, " MB")
+            als_block = ITensorCPD.compute_als(
+                X,
+                init;
+                alg = alg_block,
+                check = ITensorCPD.NoCheck(maxiter),
+                normal = false,
+            )
+
+            try
+                stats_block = @timed opt_block = ITensorCPD.optimize(
+                    init,
+                    als_block;
+                    verbose = false
+                )
+
+                fit_block = check_fit(
+                    als_block,
+                    opt_block
+                )
+
+                time_block = stats_block.time
+                memory_block = stats_block.bytes / 1024^2
+
+                block_times[rep, i] = time_block
+                block_fits[rep, i] = fit_block
+                block_memory[rep,i] = memory_block
+
+                println("Time   = ", time_block, " s")
+                println("Fit    = ", fit_block)
+                println("Memory = ", memory_block, " MB")
+            catch
+                rep -= 1
+            end
+        end
     end
 
 
@@ -224,12 +258,12 @@ function run_blocked_cpd(
 
     return (
         regular=(
-            time=time_regular,
-            fit=fit_regular,
-            memory=memory_regular,
+            time=time_exact,
+            fit=fit_exact,
+            memory=memory_exact,
         ),
         blocked=(
-            block_sizes=collect(block_sizes),
+            block_sizes=block_sizes,
             times=block_times,
             fits=block_fits,
             memory=block_memory,
