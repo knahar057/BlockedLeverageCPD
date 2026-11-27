@@ -2,7 +2,7 @@ using Pkg
 Pkg.activate(joinpath(@__DIR__,"..",".."))
 include(joinpath(@__DIR__, "..","..", "src", "blocked_cpd.jl"))
 using Images, FileIO, ITensors, ITensorCPD, Random, Plots
-using JLD2
+using JLD2, StatsBase
 
 function readcoil(coil_path,numobjects, elt=Float32)
 # 	% Read COIL-100 images, given a number of objects

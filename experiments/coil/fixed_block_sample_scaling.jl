@@ -42,7 +42,7 @@ opt = ITensorCPD.optimize(init_guess, als; verbose=false)
             algSampl = ITensorCPD.BlockLevScoreSampled(sample * scale, block)
             ts = []
             for i in 1:repeat
-                als = ITensorCPD.compute_als(coil, init_guess; alg=algSampl, check);
+                als = ITensorCPD.compute_als(coil, init_guess; alg=algSampl, check=ITensorCPD.NoCheck(20));
                 init_guess = ITensorCPD.random_CPD(coil, 20; rng)
                 
                 push!(ts, @elapsed opt = ITensorCPD.optimize(init_guess, als; verbose=false));
@@ -58,42 +58,3 @@ opt = ITensorCPD.optimize(init_guess, als; verbose=false)
         results_dir,
         "coil_fixed_block_sample_scaling.jld2",
     )
-    jldopen(results_file, "w+") do f
-        f["scaled_samples_times"] = times2
-        f["scaled_samples_fits"] = fits_scaled
-    end
-
-    xdata = sample .* block_sizes[1:end]
-    p = plot(block_vals[1:end], fits_scaled[1,1] .* ones(length(xdata)), label="Block Size: 1"; lw, marker=:circle, ms=ms)
-    for i in 2:length(fits_scaled)
-        plot!( block_vals[1:end], fits_scaled[i,:], label="Block Size: $(block_vals[i])"; lw,  marker=:circle, ms=ms)
-    end
-    plot!(legendcolumns=2,
-    title="Accuracy of Block Sampled CPD\nSamples = $(sample)",
-    xlabel="Factor times Single Block Sample Size",
-    legendfontsize=10,
-    xtickfontsize=9,
-    ytickfontsize=9,
-    labelfontsize=12,
-    yrange=[0.62,0.681],
-    ylabel="Fit")
-    savefig("$(@__DIR__)/../plots/coil/scaled_block_coil_data_$(sample).pdf")
-
-    lw=2
-    using Plots
-    p = plot(block_vals[1:end], times2[1][1]/30 * ones(length(block_vals[1:end])), label="Block Size: 1"; lw, marker=:circle, ms=ms)
-    for i in 2:length(fits_scaled)
-        plot!(block_vals[1:end], times2[i][1:3:end] ./ 30, label="Block Size: $(block_vals[i])"; lw,  marker=:circle, ms=ms)
-    end
-    plot!(legendcolumns=2,
-    title="Time per Iteration of Block Sampled CPD\nSamples = $(sample)",
-    xlabel="Factor times Single Block Sample Size",
-    ylabel="Time per Iteration (s)",
-    yrange=[0.1, 2.3],
-    legendfontsize=10,
-    xtickfontsize=9,
-    ytickfontsize=9,
-    labelfontsize=12,
-    )
-    savefig("$(@__DIR__)/../plots/coil/scaled_block_coil_time_$(sample).pdf")
-

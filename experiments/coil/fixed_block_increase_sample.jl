@@ -30,10 +30,17 @@ opt = ITensorCPD.optimize(init_guess, als; verbose=false)
     ## Using 100 samples
     block_sizes = [1,2,6,10,14]
     samples = [400:400:5000...]
-    repeat = 1
+    repeat = 5
     fits = Array{Float64}(undef, length(block_sizes), length(samples))
     times = Array{Float64}(undef, length(block_sizes), length(samples))
     check=ITensorCPD.CPDiffCheck(1e-10, 20)
+    
+    ### precompile
+    als = ITensorCPD.compute_als(coil, init_guess; 
+    alg=ITensorCPD.BlockLevScoreSampled(10, 2), check,);
+    init_guess = ITensorCPD.random_CPD(coil, 20; rng)
+    ITensorCPD.optimize(init_guess, als; verbose=false);
+    
     for (i,block) in enumerate(block_sizes)
         samp_vals = @view fits[i,:]
         t = @view times[i,:]
@@ -67,39 +74,6 @@ opt = ITensorCPD.optimize(init_guess, als; verbose=false)
     jldopen(results_file, "w+") do f
         f["times"] = times
         f["fits"] = fits
+        f["block_sizes"] = block_sizes
+        f["samples"] = samples
     end
-
-    # xdata = samples
-    # lw = 2
-    # ms = 8
-    # p = plot(xdata, fits[1,:], label="Block Size: 1", lw=lw, marker=:circle, ms=ms)
-    # for (i, j) in zip(2:length(fits),  [2,6,10,14])
-    #     plot!(xdata, fits[i,:], label="Block Size: $(j)",lw=lw,marker=:circle, ms=ms)
-    # end
-    # plot!(legendcolumns=2,
-    # title="Accuracy of Block Sampled CPD\nData: COIL",
-    # xlabel="Number of Samples",
-    # ylabel="Fit",
-    # legend=:topleft,
-    # yrange=[0.6,0.71], 
-    # legendfontsize=10,
-    # xtickfontsize=9,
-    # ytickfontsize=9,
-    # labelfontsize=12,
-    # lw=4)
-    # # savefig("$(@__DIR__)/../plots/coil/block_coil_data.pdf")
-
-    # p = plot(xdata, times[1,:] ./ 30, label="Block Size: 1", lw=lw, marker=:circle, ms=ms)
-    # for (i,j) in zip(2:length(fits),  [2,6,10,14])
-    #     plot!(xdata, times[i,:] ./ 30, label="Block Size: $(j)", lw=lw, marker=:circle, ms=ms)
-    # end
-
-    # plot!(legendcolumns=2,
-    # title="Time of Block Sampled CPD\nData: COIL",
-    # xlabel="Number of Samples",
-    # ylabel="Time per ALS Iteration (s)",
-    # legendfontsize=10,
-    # xtickfontsize=9,
-    # ytickfontsize=9,
-    # labelfontsize=12,)
-    # savefig("$(@__DIR__)/../plots/coil/block_coil_time_data.pdf")
