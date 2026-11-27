@@ -128,7 +128,7 @@ plot!(
     xtickfontsize=9,
     ytickfontsize=9,
     labelfontsize=12,
-    yrange=dataset == "chicago" ? [0,0.251] : [0.98,1],
+    yrange=dataset == "chicago" ? [0,0.251] : [0.985,.993],
     legend = :bottomleft)
 
 savefig(
@@ -166,7 +166,7 @@ plot!(
     title = "Time of Block Sampled CPD
     Data: $(dataset_title)",
     legend = :right,
-    yscale= dataset == "miranda" ? :log10 : :identity,
+    #yscale= dataset == "miranda" ? :log10 : :identity,
     legendfontsize=10,
     xtickfontsize=9,
     ytickfontsize=9,
