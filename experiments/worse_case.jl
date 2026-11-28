@@ -121,12 +121,13 @@ function make_figs(elt, ids, bad, r, n, rep =20)
     ms = 8
     lw=3
     plt2 = plot(samples, direct_error .* ones(length(samples)), ls=:dot, label="Standard ALS"; markersize=ms, lw)
+    
     for (i,b, marker) in zip(1:length(blocks), blocks,markers)
         plot!(samples, err_leverages[i], marker=marker, label="Block Size: $(b)"; ms,lw, alpha =0.8)
     end
     plot!(
     xticks=samples[1]:samples[1]:samples[end],
-    yrange=[0.9,1.01],
+    yrange= ids[1] == 400 ? [0.7,1.0] : [0.9,1.01],
     yticks=0.0:0.05:1.0,
     legendfontsize=10,
     xtickfontsize=9,
@@ -135,7 +136,8 @@ function make_figs(elt, ids, bad, r, n, rep =20)
     xlabel="Number of Samples",
     ylabel="Fit",
     title="Accuracy of the Sampled ALS
-    $(ll)"
+    $(ll)",
+    legend=:bottomright,
     )
 
     n = nothing
@@ -169,7 +171,7 @@ function make_figs(elt, ids, bad, r, n, rep =20)
     end
     plot!(
     xticks=samples[1]:samples[1]:samples[end],
-    yrange=[0.5,1.01],
+    yrange= ids[1] == 400 ? [0.3,1.0] : [0.5,1.01],
     yticks=0.0:0.1:1.0,
     legendfontsize=10,
     xtickfontsize=9,
@@ -206,34 +208,36 @@ function make_figs(elt, ids, bad, r, n, rep =20)
     bs_10 = filter(row -> row.method == "Block Size 10", df)
     bs_50 = filter(row -> row.method == "Block Size 20", df)
 
-    p = @df bs_1 violin(:sample, :error, side=:left, label="Block Size 1", color=:blue, alpha=0.2)
-    @df bs_5 violin!(:sample, :error, side=:left, label="Block Size 5", color=:red,alpha=0.2)
-    @df bs_10 violin!(:sample, :error, side=:left, label="Block Size 10", color=:orange,alpha=0.2)
-    @df bs_50 violin!(:sample, :error, side=:left, label="Block Size 20", color=:green,alpha=0.2)
+    p = @df bs_1 boxplot(:sample, :error, side=:left, label="Block Size 1", color=:blue, alpha=0.4)
+    @df bs_5 boxplot!(:sample, :error, side=:left, label="Block Size 5", color=:red,alpha=0.4)
+    @df bs_10 boxplot!(:sample, :error, side=:left, label="Block Size 10", color=:orange,alpha=0.4)
+    @df bs_50 boxplot!(:sample, :error, side=:left, label="Block Size 20", color=:green,alpha=0.4)
+    p2 = plot!(samples, direct_error .* ones(length(samples)), ls=:dot, label="Standard ALS"; markersize=ms, lw)
     xlabel!("Number of Samples")
     ylabel!("Distribution of Fits")
     title!("Distribution of CPD Fits\n$(ll)")
     plot!(legend=ids[1] == 400 ? :topleft : :bottomright,
-    yticks=[0.5,0.6,0.7,0.8,0.9,1.0], 
-    yrange=[0.5, 1.01])
+    yticks=[0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0], 
+    yrange=ids[1] == 400 ? [0.3,1.01] : [0.5, 1.01])
     plot!(legendfontsize=10,
     xtickfontsize=9,
     ytickfontsize=9,
+    legend=:bottomright,
     labelfontsize=12)
     savefig(
         joinpath(
             figure_dir,
             "worse_case",
-            "violin_mode_$(name)_rank_$(rk)_modified_test_$(n)_$(ids[1])_$(length(ids)).pdf",
+            "box_mode_$(name)_rank_$(rk)_modified_test_$(n)_$(ids[1])_$(length(ids)).pdf",
         ),
     )
 
 end
 elt = Float64 
-ids = (400,400,400)
+ids = (90,90,90)
 bad = 3
 r = 10
-n = [1,2,3,4]
+n = [1,2,3]
 
 make_data(elt, ids, bad, r, n)
 make_figs(elt, ids, bad, r, n)

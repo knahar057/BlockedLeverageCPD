@@ -67,6 +67,7 @@ opt = ITensorCPD.optimize(init_guess, als; verbose=false)
         f["repeat"] = repeat
         f["blocks"] = blocks
         f["samples"] = samples
+        f["ref_loss"] = ref_loss
     end
 
     # plot((1 .- time ./ time[1]) .* 100, marker=:circle,

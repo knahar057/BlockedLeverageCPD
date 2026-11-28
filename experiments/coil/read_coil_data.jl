@@ -37,10 +37,11 @@ mkpath(figure_dir)
 data = jldopen(results_path)
 
 if results_file == "coil_variance.jld2"
-    fits = f["fits"]
-    repeat = f["repeat"]
-    blocks = f["blocks"]
-    samples = f["samples"]
+    fits = data["fits"]
+    repeat = data["repeat"]
+    blocks = data["blocks"]
+    samples = data["samples"]
+    ref_loss = data["ref_loss"]
     
     fs = map(x -> mean.(eachrow(fits[x,:,:])), 1:3)
     f1 = hcat(fits[1,:,:])
@@ -49,7 +50,7 @@ if results_file == "coil_variance.jld2"
     fsstd = map(x->std.(eachrow(fits[x,:,:])) ./ mean.(eachrow(fits[x,:,:])), 1:3)
 
     lw = 4
-    plot(ref_loss .* ones(length(fs[1])), ylabel="Standard ALS";lw)
+    plot(ref_loss .* ones(length(fs[1])), label="Standard ALS";lw, ls=:dot)
     plot!(fs[1], marker=:circle,
     legend=:topright, label="500 Samples", ms=6, color=palette(:default)[2]) 
     scatter!(Base.repeat(1:blocks, inner=repeat), reshape(f1, (repeat * length(1:blocks))), label=nothing, color=palette(:default)[2], ms=6, alpha = 0.2)
